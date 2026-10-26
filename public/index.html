@@ -1,0 +1,46 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meeting Action Items to Slack</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="container">
+    <header>
+      <p class="eyebrow">MEETING WORKFLOW</p>
+      <h1>Meeting Action Items</h1>
+      <p>Turn meeting transcripts into clear, reviewable tasks.</p>
+    </header>
+
+    <section class="panel">
+      <label for="transcript">Meeting transcript</label>
+      <textarea id="transcript" rows="10"
+        placeholder="Paste your meeting transcript here..."></textarea>
+      <button id="extractBtn">Extract Action Items</button>
+      <p id="status" role="status"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Review action items</h2>
+      <p class="muted">Check and edit the tasks before sharing them.</p>
+      <div id="actionItems">
+        <p class="muted">Your extracted action items will appear here.</p>
+      </div>
+      <button id="addBtn" class="secondary">+ Add task manually</button>
+    </section>
+
+    <section class="panel">
+      <h2>Slack message preview</h2>
+      <pre id="slackPreview">Your approved recap will appear here.</pre>
+      <button id="previewBtn" class="secondary">Update Preview</button>
+      <button id="postBtn" disabled>Post Approved Recap to Slack</button>
+      <p class="muted">Slack posting will be enabled after the backend is configured.</p>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
