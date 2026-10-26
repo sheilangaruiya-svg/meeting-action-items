@@ -1,0 +1,157 @@
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+  color: #202938;
+  line-height: 1.6;
+}
+
+.container {
+  width: min(900px, 92%);
+  margin: 40px auto;
+}
+
+header {
+  margin-bottom: 28px;
+}
+
+.eyebrow {
+  color: #5367a5;
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 2px;
+}
+
+h1 {
+  margin: 6px 0;
+  font-size: clamp(28px, 5vw, 40px);
+}
+
+h2 {
+  margin-top: 0;
+  font-size: 20px;
+}
+
+header > p:last-child,
+.muted {
+  color: #687386;
+}
+
+.panel {
+  background: #ffffff;
+  border: 1px solid #e1e6ed;
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 16px rgba(20, 30, 50, 0.04);
+}
+
+label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+textarea,
+input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ccd3df;
+  border-radius: 8px;
+  font: inherit;
+  background: #fff;
+  color: #202938;
+}
+
+textarea {
+  resize: vertical;
+  margin-bottom: 14px;
+}
+
+textarea:focus,
+input:focus {
+  outline: 2px solid #9aabe9;
+  border-color: #5367a5;
+}
+
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 12px 18px;
+  background: #465da8;
+  color: #fff;
+  font: inherit;
+  font-weight: bold;
+  cursor: pointer;
+  margin: 4px 6px 4px 0;
+}
+
+button:hover:not(:disabled) {
+  background: #354987;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.secondary {
+  background: #e9edf7;
+  color: #34436f;
+}
+
+button.secondary:hover:not(:disabled) {
+  background: #dce3f3;
+}
+
+#status {
+  color: #465da8;
+  font-size: 14px;
+}
+
+.action-item {
+  border: 1px solid #e1e6ed;
+  border-radius: 10px;
+  padding: 16px;
+  margin: 12px 0;
+}
+
+.action-item label {
+  margin-top: 10px;
+}
+
+.action-item button {
+  margin-top: 12px;
+}
+
+#slackPreview {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #f7f8fb;
+  border: 1px solid #e1e6ed;
+  border-radius: 8px;
+  padding: 16px;
+  font: inherit;
+  min-height: 90px;
+}
+
+@media (max-width: 600px) {
+  .container {
+    margin: 20px auto;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  button {
+    width: 100%;
+    margin: 6px 0;
+  }
+}
