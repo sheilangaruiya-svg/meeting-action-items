@@ -1,211 +1,115 @@
+// public/script.js — UI wiring: review, sign-off, send now or schedule.
+// Extraction lives in public/extract.js (loaded first) as window.Recap.extractActions.
 
-const transcriptInput = document.getElementById("transcript");
-const extractBtn = document.getElementById("extractBtn");
-const addBtn = document.getElementById("addBtn");
-const previewBtn = document.getElementById("previewBtn");
-const postBtn = document.getElementById("postBtn");
-const actionItemsContainer = document.getElementById("actionItems");
-const slackPreview = document.getElementById("slackPreview");
-const statusMessage = document.getElementById("status");
+const el = (id) => document.getElementById(id);
+
+const transcriptInput = el("transcript");
+const extractBtn = el("extractBtn");
+const addBtn = el("addBtn");
+const previewBtn = el("previewBtn");
+const postBtn = el("postBtn");
+const copyBtn = el("copyBtn");
+const actionItemsContainer = el("actionItems");
+const slackPreview = el("slackPreview");
+const statusMessage = el("status");
+const meetingTitle = el("meetingTitle");
+const approver = el("approver");
+const nowBtn = el("nowBtn");
+const laterBtn = el("laterBtn");
+const whenWrap = el("whenWrap");
+const sendAt = el("sendAt");
+const scheduleHint = document.getElementById("scheduleHint");
+const queueBox = el("queue");
 
 let actionItems = [];
+let sendMode = "now"; // "now" | "later"
+let busy = false;
+let postedOnce = false;
 
-const TASK_WORDS =
-  /\b(will|i'll|must|need to|needs to|please|responsible for|follow up|send|create|update|review|finish|complete|prepare|schedule|confirm|check|deliver|submit|assign|fix|finish|approve|organize|draft|share|provide|make|call|email|contact|book|coordinate|ensure|investigate|resolve|look into)\b/i;
+/* ---------------- theme ---------------- */
 
-const NAME = "[A-Z][a-z]+(?:[-'][A-Z]?[a-z]+)*(?:\\s+[A-Z][a-z]+)*";
-
-function splitTranscript(transcript) {
-  // Preserve speaker labels and split transcript lines into sentences.
-  return transcript
-    .replace(/\r/g, "")
-    .split(/\n+/)
-    .flatMap(line => {
-      const trimmed = line.trim();
-      if (!trimmed) return [];
-
-      // Keep "Name: text" together as one speaker turn.
-      const match = trimmed.match(new RegExp("^(" + NAME + ")\\s*:\\s*(.*)$"));
-
-      if (match) {
-        const speaker = match[1];
-        const content = match[2];
-
-        return content
-          .split(/(?<=[.!?])\s+(?=[A-Z])/)
-          .map(part => part.trim())
-          .filter(Boolean)
-          .map(part => `${speaker}: ${part}`);
-      }
-
-      return trimmed
-        .split(/(?<=[.!?])\s+(?=[A-Z])/)
-        .map(part => part.trim())
-        .filter(Boolean);
-    });
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  document.getElementById("themeLabel").textContent = theme === "dark" ? "Light" : "Dark";
+  try { localStorage.setItem("recap-theme", theme); } catch (e) {}
 }
 
-function getSpeaker(sentence) {
-  const match = sentence.match(new RegExp("^(" + NAME + ")\\s*:\\s*"));
-  return match ? match[1] : "";
+function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem("recap-theme"); } catch (e) {}
+  const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  applyTheme(saved || (prefersDark ? "dark" : "light"));
 }
 
-function getContent(sentence) {
-  return sentence.replace(new RegExp("^" + NAME + "\\s*:\\s*"), "").trim();
+document.getElementById("themeBtn").addEventListener("click", () => {
+  const current = document.documentElement.getAttribute("data-theme");
+  applyTheme(current === "dark" ? "light" : "dark");
+});
+
+/* ---------------- helpers ---------------- */
+
+function setStatus(text, isError) {
+  statusMessage.textContent = text;
+  statusMessage.className = isError ? "error" : "";
 }
 
-function getOwner(sentence) {
-  const speaker = getSpeaker(sentence);
-  const content = getContent(sentence);
-
-  // "Sarah: I'll do it" means Sarah owns the task.
-  if (/^(i'll|i will|i need to|i must|let me)\b/i.test(content)) {
-    return speaker || "Unassigned";
-  }
-
-  // "Sarah: James, can you send it?" means James owns the task.
-  const requested = content.match(
-    new RegExp("^(" + NAME + ")\\s*,?\\s+(?:can you|could you|would you|please|will you|need to|needs to|must)\\b", "i")
-  );
-
-  if (requested) return requested[1];
-
-  // "Sarah: James will send it."
-  const namedCommitment = content.match(
-    new RegExp("\\b(" + NAME + ")\\s+(?:will|needs to|must|is responsible for)\\b")
-  );
-
-  if (namedCommitment) return namedCommitment[1];
-
-  // "Sarah: Please send the report."
-  // The speaker is the likely owner only when making a commitment
-  // or stating their own task, not when giving an ambiguous instruction.
-  if (
-    speaker &&
-    /^(i will|i'll|i need to|i must|let me)\b/i.test(content)
-  ) {
-    return speaker;
-  }
-
-  return "Unassigned";
+function titleText() {
+  return meetingTitle.value.trim() || "Meeting Action Items";
 }
 
-function getDeadline(sentence) {
-  const text = getContent(sentence);
-
-  const patterns = [
-    /\b(?:by|before|due(?:\s+on)?)\s+(?:(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(?:,?\s+(?:at\s+)?\d{1,2}(?::\d{2})?\s*(?:AM|PM))?|tomorrow(?:\s+at\s+\d{1,2}(?::\d{2})?\s*(?:AM|PM))?|today|next week|end of (?:day|week)|the next meeting|the first week of November|\d{1,2}(?:st|nd|rd|th)?\s+of\s+[A-Za-z]+|[A-Za-z]+\s+\d{1,2}(?:,?\s+\d{4})?)(?:\s+at\s+\d{1,2}(?::\d{2})?\s*(?:AM|PM))?/i,
-    /\b(?:by|before)\s+EOD\b/i
-  ];
-
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match) return match[0];
-  }
-
-  return "No deadline";
+function approverName() {
+  return approver.value.trim();
 }
 
-function cleanTask(sentence) {
-  let task = getContent(sentence);
+function buildMessage() {
+  if (!actionItems.length) return "";
 
-  // Remove a person's name when the speaker is assigning the task.
-  task = task.replace(
-    new RegExp("^" + NAME + "\\s*,?\\s+(?=(?:can you|could you|would you|please|will you|needs to|need to|must)\\b)", "i"),
-    ""
-  );
+  const lines = actionItems.map((item, index) => {
+    const task = item.task.trim() || "(Task description needed)";
+    const owner = item.owner.trim() || "Unassigned";
+    const deadline = item.deadline.trim() || "No deadline";
+    return `${index + 1}. ${task}\n   Owner: ${owner}\n   Deadline: ${deadline}`;
+  });
 
-  task = task
-    .replace(/^(?:i'll|i will|i need to|i must|let me)\s+/i, "")
-    .replace(/^(?:please|can you|could you|would you|will you)\s+/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  const who = approverName();
+  const stamp = new Date().toLocaleDateString(undefined, {
+    day: "numeric", month: "short", year: "numeric"
+  });
+  const signoff = who ? `_Approved by ${who} · ${stamp}_` : `_Not yet approved · ${stamp}_`;
 
-  return task || getContent(sentence);
-}
-
-function normalizeTask(task) {
-  return task
-    .toLowerCase()
-    .replace(/\b(i'll|i will|please|can you|could you|would you|will you)\b/g, "")
-    .replace(/\b(by|before|due)\s+.*$/i, "")
-    .replace(/[^\w\s]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function extractActions(transcript) {
-  const sentences = splitTranscript(transcript);
-  const extracted = [];
-
-  for (const sentence of sentences) {
-    if (!TASK_WORDS.test(sentence)) continue;
-
-    const content = getContent(sentence);
-
-    // Skip a question that only requests an action when no clear task
-    // can be identified. The review screen allows manual additions.
-    if (
-      /\bshould probably\b/i.test(content) ||
-      /\bmaybe we should\b/i.test(content)
-    ) {
-      continue;
-    }
-
-    const task = cleanTask(sentence);
-    const owner = getOwner(sentence);
-    const deadline = getDeadline(sentence);
-    const normalized = normalizeTask(task);
-
-    if (!normalized) continue;
-
-    // Collapse a request and its acceptance when they describe the same
-    // task and have the same identifiable owner.
-    const duplicate = extracted.find(item =>
-      normalizeTask(item.task) === normalized &&
-      item.owner === owner
-    );
-
-    if (duplicate) {
-      if (
-        duplicate.deadline === "No deadline" &&
-        deadline !== "No deadline"
-      ) {
-        duplicate.deadline = deadline;
-      }
-      continue;
-    }
-
-    extracted.push({ task, owner, deadline });
-  }
-
-  return extracted;
+  return `*${titleText()}*\n${signoff}\n\n${lines.join("\n\n")}`;
 }
 
 function updatePreview() {
-  const lines = actionItems
-    .map((item, index) => {
-      const task = item.task.trim() || "(Task description needed)";
-      const owner = item.owner.trim() || "Unassigned";
-      const deadline = item.deadline.trim() || "No deadline";
-
-      return `${index + 1}. ${task}\n   Owner: ${owner}\n   Deadline: ${deadline}`;
-    });
-
-  slackPreview.textContent = lines.length
-    ? `*Meeting Action Items*\n\n${lines.join("\n\n")}`
-    : "Your approved recap will appear here.";
+  slackPreview.textContent = buildMessage() || "Nothing to preview yet.";
+  refreshPostState();
 }
+
+function refreshPostState() {
+  const hasItems = actionItems.some((item) => item.task.trim());
+  const signedOff = approverName().length > 1;
+  const scheduledOk = sendMode === "now" || Boolean(sendAt.value);
+
+  postBtn.disabled = busy || !hasItems || !signedOff || !scheduledOk || postedOnce;
+  postBtn.textContent = postedOnce
+    ? "Sent ✓"
+    : busy
+      ? "Working…"
+      : sendMode === "now"
+        ? "Post to Slack"
+        : "Schedule recap";
+}
+
+/* ---------------- review list ---------------- */
 
 function renderItems() {
   actionItemsContainer.replaceChildren();
 
-  if (actionItems.length === 0) {
-    const message = document.createElement("p");
-    message.className = "muted";
-    message.textContent =
-      "No action items yet. Paste a transcript and extract tasks, or add one manually.";
-    actionItemsContainer.appendChild(message);
+  if (!actionItems.length) {
+    const empty = document.createElement("p");
+    empty.className = "muted";
+    empty.textContent = "No action items yet. Paste a transcript and extract, or add one by hand.";
+    actionItemsContainer.appendChild(empty);
     updatePreview();
     return;
   }
@@ -214,26 +118,21 @@ function renderItems() {
     const card = document.createElement("div");
     card.className = "action-item";
 
-    const fields = [
+    [
       { key: "task", label: "Task description" },
       { key: "owner", label: "Owner" },
       { key: "deadline", label: "Deadline" }
-    ];
-
-    fields.forEach(field => {
+    ].forEach((field) => {
       const label = document.createElement("label");
       label.textContent = field.label;
 
       const input = document.createElement("input");
       input.type = "text";
       input.value = item[field.key] || "";
-      input.setAttribute(
-        "aria-label",
-        `${field.label}, task ${index + 1}`
-      );
-
+      input.setAttribute("aria-label", `${field.label}, task ${index + 1}`);
       input.addEventListener("input", () => {
         actionItems[index][field.key] = input.value;
+        if (postedOnce) { postedOnce = false; setStatus("Task changed — send again to update the channel."); }
         updatePreview();
       });
 
@@ -241,63 +140,166 @@ function renderItems() {
       card.appendChild(label);
     });
 
-    const removeButton = document.createElement("button");
-    removeButton.className = "secondary";
-    removeButton.type = "button";
-    removeButton.textContent = "Remove task";
-
-    removeButton.addEventListener("click", () => {
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "remove";
+    remove.textContent = "Remove";
+    remove.addEventListener("click", () => {
       actionItems.splice(index, 1);
+      postedOnce = false;
       renderItems();
-      statusMessage.textContent = "Task removed.";
+      setStatus("Task removed.");
     });
+    card.appendChild(remove);
 
-    card.appendChild(removeButton);
     actionItemsContainer.appendChild(card);
   });
 
   updatePreview();
 }
 
+/* ---------------- extract / add ---------------- */
+
 extractBtn.addEventListener("click", () => {
   const transcript = transcriptInput.value.trim();
-
   if (!transcript) {
-    statusMessage.textContent =
-      "Please paste a meeting transcript first.";
+    setStatus("Paste a meeting transcript first.", true);
     return;
   }
 
-  actionItems = extractActions(transcript);
+  actionItems = window.Recap.extractActions(transcript);
+  postedOnce = false;
   renderItems();
 
-  statusMessage.textContent = actionItems.length
-    ? `Found ${actionItems.length} possible action item(s). Please review them.`
-    : "No likely action items found. You can add tasks manually.";
-
-  postBtn.disabled = true;
+  setStatus(
+    actionItems.length
+      ? `Found ${actionItems.length} action item${actionItems.length === 1 ? "" : "s"} — review them below.`
+      : "No likely action items found. Add tasks manually if you need to.",
+    !actionItems.length
+  );
 });
 
 addBtn.addEventListener("click", () => {
-  actionItems.push({
-    task: "",
-    owner: "Unassigned",
-    deadline: "No deadline"
-  });
-
+  actionItems.push({ task: "", owner: "Unassigned", deadline: "No deadline" });
+  postedOnce = false;
   renderItems();
-  statusMessage.textContent = "New task added. Fill in its details.";
-  postBtn.disabled = true;
+  setStatus("New task added. Fill in the details.");
 });
 
 previewBtn.addEventListener("click", () => {
   updatePreview();
-  statusMessage.textContent =
-    "Preview updated. Review the items before sharing.";
+  setStatus("Preview refreshed.");
 });
 
-// Posting stays disabled until the Slack backend is configured.
-postBtn.disabled = true;
+meetingTitle.addEventListener("input", updatePreview);
+approver.addEventListener("input", updatePreview);
+sendAt.addEventListener("input", refreshPostState);
 
-// Show the initial empty state when the page loads.
+/* ---------------- send timing ---------------- */
+
+function setSendMode(mode) {
+  sendMode = mode;
+  nowBtn.setAttribute("aria-pressed", String(mode === "now"));
+  laterBtn.setAttribute("aria-pressed", String(mode === "later"));
+  whenWrap.hidden = mode !== "later";
+  scheduleHint.hidden = mode !== "later";
+  if (mode === "later" && !sendAt.value) {
+    const d = new Date(Date.now() + 60 * 60 * 1000);
+    d.setMinutes(0, 0, 0);
+    const pad = (n) => String(n).padStart(2, "0");
+    sendAt.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:00`;
+  }
+  postedOnce = false;
+  refreshPostState();
+}
+
+nowBtn.addEventListener("click", () => setSendMode("now"));
+laterBtn.addEventListener("click", () => setSendMode("later"));
+
+/* ---------------- posting ---------------- */
+
+postBtn.addEventListener("click", async () => {
+  if (busy) return;
+
+  const message = buildMessage();
+  if (!message) { setStatus("Add at least one task before sending.", true); return; }
+  if (!approverName()) { setStatus("Add the name of the person approving this recap.", true); return; }
+
+  busy = true;
+  refreshPostState();
+
+  const scheduling = sendMode === "later";
+  const endpoint = scheduling ? "/api/schedule" : "/api/slack";
+  const body = { message, approved: true, approver: approverName(), title: titleText() };
+  if (scheduling) body.sendAt = new Date(sendAt.value).toISOString();
+
+  setStatus(scheduling ? "Scheduling the recap…" : "Posting the recap to Slack…");
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      setStatus(data.error || `Request failed (${response.status}).`, true);
+      return;
+    }
+
+    postedOnce = !scheduling;
+    setStatus(
+      scheduling
+        ? `Scheduled for ${new Date(body.sendAt).toLocaleString()}.`
+        : data.message || "Recap sent to Slack."
+    );
+    if (scheduling) loadQueue();
+  } catch (error) {
+    setStatus("Could not reach the server. Is it running on port 3000?", true);
+  } finally {
+    busy = false;
+    refreshPostState();
+  }
+});
+
+copyBtn.addEventListener("click", async () => {
+  const message = buildMessage();
+  if (!message) { setStatus("There is nothing to copy yet.", true); return; }
+  try {
+    await navigator.clipboard.writeText(message);
+    setStatus("Recap copied — paste it into Slack.");
+  } catch (error) {
+    setStatus("Copy failed. Select the preview text manually.", true);
+  }
+});
+
+/* ---------------- scheduled queue ---------------- */
+
+async function loadQueue() {
+  try {
+    const response = await fetch("/api/schedule");
+    if (!response.ok) return;
+    const { jobs } = await response.json();
+    queueBox.replaceChildren();
+
+    if (!jobs || !jobs.length) return;
+
+    jobs.forEach((job) => {
+      const row = document.createElement("div");
+      row.className = "queue-item";
+      const when = new Date(job.sendAt).toLocaleString();
+      row.innerHTML = `<span>Queued for <strong>${when}</strong></span><span>${job.state}</span>`;
+      queueBox.appendChild(row);
+    });
+  } catch (error) {
+    /* queue is a nicety; ignore failures */
+  }
+}
+
+/* ---------------- boot ---------------- */
+
+initTheme();
+setSendMode("now");
 renderItems();
+loadQueue();
