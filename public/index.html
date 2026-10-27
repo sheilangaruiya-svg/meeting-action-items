@@ -1,46 +1,1419 @@
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Meeting Action Items to Slack</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Meeting Action Items</title>
+  <style>
+/* Meeting Action Items — light + dark theme */
+
+:root {
+  --bg: #f5f6f8;
+  --card: #ffffff;
+  --card-2: #fbfbfd;
+  --ink: #14161b;
+  --ink-2: #4a5160;
+  --muted: #6d7482;
+  --line: #e3e6eb;
+  --line-2: #d3d8e0;
+  --accent: #3b5bdb;
+  --accent-2: #2f4bc0;
+  --accent-soft: #edf1fe;
+  --danger: #a12a2a;
+  --preview-bg: #1c1f26;
+  --preview-ink: #e7e9ee;
+  --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 14px 30px -26px rgba(16, 24, 40, .45);
+  --radius: 14px;
+}
+
+html[data-theme="dark"] {
+  --bg: #0f1114;
+  --card: #171a1f;
+  --card-2: #1c2027;
+  --ink: #eef0f4;
+  --ink-2: #c2c7d0;
+  --muted: #8d95a3;
+  --line: #262b33;
+  --line-2: #333a45;
+  --accent: #7c93ff;
+  --accent-2: #93a5ff;
+  --accent-soft: #1e2537;
+  --danger: #ff8f8f;
+  --preview-bg: #0a0c0f;
+  --preview-ink: #dfe3ea;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 18px 40px -30px rgba(0, 0, 0, .9);
+}
+
+* { box-sizing: border-box; }
+
+/* author styles like label{display:block} otherwise beat the hidden attribute */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  padding: 0 0 72px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  transition: background .18s ease, color .18s ease;
+}
+
+.container { width: min(880px, 92vw); margin: 44px auto 0; }
+
+/* ---------- header ---------- */
+
+.site-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 26px;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0 0 6px;
+  font-size: clamp(26px, 4vw, 34px);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-weight: 650;
+}
+
+.tagline { margin: 0; color: var(--muted); font-size: 14.5px; max-width: 52ch; }
+
+.icon-btn {
+  flex: 0 0 auto;
+  background: var(--card);
+  color: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.icon-btn:hover { border-color: var(--line-2); color: var(--ink); }
+
+/* ---------- panels ---------- */
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px 24px 24px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+
+.panel-head { margin-bottom: 16px; }
+
+h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 4px;
+  font-size: 16.5px;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+}
+
+.step {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.muted { margin: 0; color: var(--muted); font-size: 14px; }
+.tiny { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+code {
+  background: var(--accent-soft);
+  color: var(--ink-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12.5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* ---------- fields ---------- */
+
+label, .field span, legend {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+label { display: block; margin-bottom: 7px; }
+.field span em { font-style: normal; font-weight: 500; color: var(--muted); }
+
+textarea, input {
+  width: 100%;
+  margin-top: 6px;
+  padding: 11px 12px;
+  background: var(--card-2);
+  color: var(--ink);
+  border: 1px solid var(--line-2);
+  border-radius: 9px;
+  font: inherit;
+  font-size: 14.5px;
+  transition: border-color .12s ease, box-shadow .12s ease, background .18s ease;
+}
+
+textarea {
+  min-height: 190px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+textarea::placeholder, input::placeholder { color: var(--muted); opacity: .8; }
+
+textarea:focus, input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 14px;
+}
+
+/* ---------- send timing ---------- */
+
+.send-block {
+  margin: 18px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.send-block legend { margin-bottom: 8px; }
+
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  gap: 3px;
+  background: var(--card-2);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+}
+
+.seg {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 7px 16px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.seg[aria-pressed="true"] {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .12);
+}
+
+html[data-theme="dark"] .seg[aria-pressed="true"] { background: #2b323d; }
+
+.when { margin-top: 12px; max-width: 280px; }
+
+/* ---------- buttons ---------- */
+
+button {
+  border: 1px solid transparent;
+  border-radius: 9px;
+  padding: 10px 17px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+
+button:hover:not(:disabled) { background: var(--accent-2); }
+
+button:disabled {
+  background: var(--card-2);
+  color: var(--muted);
+  border-color: var(--line);
+  cursor: not-allowed;
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--ink-2);
+  border-color: var(--line-2);
+}
+
+button.secondary:hover:not(:disabled) { background: var(--card-2); color: var(--ink); }
+
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.action-row.wrap { margin-top: 16px; }
+
+#status { margin: 0; min-height: 20px; font-size: 13.5px; color: var(--accent); }
+#status.error { color: var(--danger); }
+
+/* ---------- review cards ---------- */
+
+#actionItems { margin-bottom: 14px; }
+
+#actionItems > .muted { margin: 0 0 14px; }
+
+.action-item {
+  display: grid;
+  grid-template-columns: 1.85fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+  padding: 14px 16px 16px;
+  margin-bottom: 10px;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+.action-item label {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.action-item input { background: var(--card); }
+
+.action-item .remove {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--line-2);
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.action-item .remove:hover:not(:disabled) { background: transparent; border-color: var(--danger); }
+
+/* ---------- preview ---------- */
+
+#slackPreview {
+  margin: 0;
+  padding: 18px 20px;
+  min-height: 150px;
+  background: var(--preview-bg);
+  color: var(--preview-ink);
+  border-radius: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
+
+/* ---------- schedule queue ---------- */
+
+#queue { margin-top: 14px; }
+
+.queue-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border: 1px dashed var(--line-2);
+  border-radius: 9px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+
+.queue-item strong { color: var(--ink); font-weight: 620; }
+
+@media (max-width: 720px) {
+  .container { margin-top: 26px; }
+  .panel { padding: 18px 16px 20px; }
+  .field-grid { grid-template-columns: 1fr; }
+  .action-item { grid-template-columns: 1fr; }
+  .action-item .remove { justify-self: start; }
+  .site-head { flex-direction: column; }
+}
+
+/* ---------- deadline: text + calendar ---------- */
+
+.deadline-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.deadline-wrap input[type="text"] { flex: 1 1 auto; margin-top: 6px; }
+
+.cal {
+  flex: 0 0 auto;
+  margin-top: 6px;
+  padding: 8px 10px;
+  font-size: 15px;
+  line-height: 1;
+  background: var(--card);
+  color: var(--ink-2);
+  border: 1px solid var(--line-2);
+}
+
+.cal:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+
+/* the real picker stays in the DOM (showPicker needs it) but out of sight */
+.date-picker {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---------- success panel ---------- */
+
+.panel.done {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.done-inner {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.tick {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel.done h2 { margin: 0 0 4px; }
+.panel.done .muted { margin-bottom: 14px; }
+
+/* ---------- sent history ---------- */
+
+.history-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.history-item:first-child { border-top: 0; }
+
+.history-main { flex: 1 1 auto; min-width: 0; }
+.history-main strong { display: block; font-weight: 620; color: var(--ink); }
+.history-main .tiny { margin: 3px 0 0; }
+
+.history-side {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.badge.good { background: var(--accent-soft); color: var(--accent); }
+.badge.bad { background: rgba(200, 60, 60, 0.14); color: #b3261e; }
+
+.tiny-btn { padding: 6px 10px; font-size: 13px; }
+
+.history-message {
+  flex: 1 0 100%;
+  margin: 10px 0 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: #1f2430;
+  color: #e8ecf5;
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.history-item:has(.history-message) { flex-wrap: wrap; }
+
+</style>
 </head>
 <body>
-  <main class="container">
-    <header>
-      <p class="eyebrow">MEETING WORKFLOW</p>
-      <h1>Meeting Action Items</h1>
-      <p>Turn meeting transcripts into clear, reviewable tasks.</p>
+   <div class="errwrap">  <div id="errbar" style="display:none;margin:0 auto 16px;width:min(880px,92vw);padding:12px 14px;border-radius:10px;background:#fdecec;border:1px solid #f3c9c9;color:#8f2020;font:13.5px/1.5 -apple-system,Segoe UI,Roboto,sans-serif">
+    <strong>Something broke on the page:</strong> <span id="errtext"></span>
+  </div>
+</div>
+  <div class="container">
+
+    <header class="site-head">
+      <div>
+        <p class="eyebrow">Meeting workflow</p>
+        <h1>Meeting Action Items</h1>
+        <p class="tagline">Turn a transcript into reviewed tasks, then post the recap to Slack.</p>
+      </div>
+      <button id="themeBtn" class="icon-btn" type="button" aria-label="Switch theme">
+        <span id="themeLabel">Dark</span>
+      </button>
     </header>
 
     <section class="panel">
-      <label for="transcript">Meeting transcript</label>
-      <textarea id="transcript" rows="10"
-        placeholder="Paste your meeting transcript here..."></textarea>
-      <button id="extractBtn">Extract Action Items</button>
-      <p id="status" role="status"></p>
-    </section>
-
-    <section class="panel">
-      <h2>Review action items</h2>
-      <p class="muted">Check and edit the tasks before sharing them.</p>
-      <div id="actionItems">
-        <p class="muted">Your extracted action items will appear here.</p>
+      <div class="panel-head">
+        <h2><span class="step">1</span> Transcript</h2>
+        <p class="muted">Speaker labels like <code>Name: text</code> give the most accurate owners.</p>
       </div>
-      <button id="addBtn" class="secondary">+ Add task manually</button>
+      <label for="transcript">Meeting transcript</label>
+      <textarea id="transcript" rows="9"
+        placeholder="Alice Brown: I'll send the MSA to Northwind legal by Friday.&#10;Bob Lee: I will update the pricing sheet by Monday.&#10;Carol Diaz: Someone should fix the pricing page before launch."></textarea>
+      <div class="action-row">
+        <button id="extractBtn" type="button">Extract action items</button>
+        <p id="status" role="status"></p>
+      </div>
     </section>
 
     <section class="panel">
-      <h2>Slack message preview</h2>
-      <pre id="slackPreview">Your approved recap will appear here.</pre>
-      <button id="previewBtn" class="secondary">Update Preview</button>
-      <button id="postBtn" disabled>Post Approved Recap to Slack</button>
-      <p class="muted">Slack posting will be enabled after the backend is configured.</p>
+      <div class="panel-head">
+        <h2><span class="step">2</span> Review</h2>
+        <p class="muted">Edit anything the extractor got wrong. Nothing is sent until you approve.</p>
+      </div>
+      <div id="actionItems"></div>
+      <button id="addBtn" class="secondary" type="button">+ Add task manually</button>
     </section>
-  </main>
-<script src="extract.js"></script>
-  <script src="script.js"></script>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2><span class="step">3</span> Sign-off &amp; delivery</h2>
+        <p class="muted">The recap is only posted once someone puts their name to it.</p>
+      </div>
+
+      <div class="field-grid">
+        <label class="field">
+          <span>Meeting title</span>
+          <input id="meetingTitle" type="text" placeholder="Weekly sync" />
+        </label>
+        <label class="field">
+          <span>Approved by <em>(required)</em></span>
+          <input id="approver" type="text" placeholder="Your name" />
+        </label>
+      </div>
+
+      <fieldset class="send-block">
+        <legend>When to send</legend>
+        <div class="segmented" role="group" aria-label="Send timing">
+          <button id="nowBtn" class="seg" type="button" aria-pressed="true">Send now</button>
+          <button id="laterBtn" class="seg" type="button" aria-pressed="false">Schedule</button>
+        </div>
+        <label class="field when" id="whenWrap" hidden>
+          <span>Send at</span>
+          <input id="sendAt" type="datetime-local" />
+        </label>
+        <p class="tiny" id="scheduleHint" hidden>Stays queued on the server. If the server restarts before then, the job is lost.</p>
+      </fieldset>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2><span class="step">4</span> Slack preview</h2>
+        <p class="muted">Exactly what lands in the channel.</p>
+      </div>
+      <pre id="slackPreview">Nothing to preview yet.</pre>
+      <div class="action-row wrap">
+        <button id="postBtn" type="button" disabled>Post to Slack</button>
+        <button id="copyBtn" class="secondary" type="button">Copy recap</button>
+        <button id="previewBtn" class="secondary" type="button">Refresh preview</button>
+        <button id="testSlackBtn" class="secondary" type="button">Test Slack</button>
+      </div>
+      <div id="queue"></div>
+    </section>
+
+    <section class="panel done" id="donePanel" hidden>
+      <div class="done-inner">
+        <div class="tick">&#10003;</div>
+        <div>
+          <h2 id="doneTitle">Sent to Slack</h2>
+          <p class="muted" id="doneDetail"></p>
+          <div class="action-row wrap">
+            <button id="againBtn" type="button">Start a new recap</button>
+            <button id="closeBtn" type="button" class="secondary">Close</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <span class="step">Log</span>
+        <h2>Recaps already sent</h2>
+        <p class="muted">Saved on this computer in history.json — the last 50 posts.</p>
+      </div>
+      <div id="historyList"></div>
+      <div class="action-row wrap">
+        <button id="historyRefresh" type="button" class="secondary">Refresh</button>
+        <button id="historyClear" type="button" class="secondary">Clear log</button>
+      </div>
+    </section>
+
+  </div>
+
+<script>
+// public/extract.js — extraction engine, extracted from script.js so it can be tested.
+// Load before script.js:  <script src="extract.js"><\/script>
+// Exposes window.Recap.extractActions(transcript) -> [{ task, owner, deadline }]
+
+(function (global) {
+  "use strict";
+
+  // A commitment cue is required as well as an action verb, otherwise
+  // "The update shipped last week" becomes an action item.
+  const ACTION_WORDS =
+    /\b(will|i'll|we'll|must|need to|needs to|has to|have to|should|please|responsible for|follow up|send|create|update|review|finish|complete|prepare|schedule|confirm|check|deliver|submit|assign|fix|approve|organize|draft|share|provide|call|email|contact|book|coordinate|ensure|investigate|resolve|look into)\b/i;
+
+  const COMMITMENT =
+    /\b(will|i'll|we'll|must|need to|needs to|has to|have to|should|please|responsible for|follow up|can you|could you|would you|will you)\b/i;
+
+  const NAME = "[A-Z][a-z]+(?:[-'][A-Z]?[a-z]+)*(?:\\s+[A-Z][a-z]+)*";
+
+  const DATE_WORD =
+    "(?:today|tonight|tomorrow(?:\\s+(?:morning|afternoon|evening))?|" +
+    "(?:this|next)\\s+(?:week|month|quarter|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)|" +
+    "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|" +
+    "end of (?:day|week|month)|EOD|EOW|" +
+    "(?:the\\s+)?first week of [A-Z][a-z]+|" +
+    "\\d{1,2}(?:st|nd|rd|th)? of [A-Z][a-z]+|" +
+    "[A-Z][a-z]+\\s+\\d{1,2}(?:,?\\s+\\d{4})?|" +
+    "\\d{1,2}/\\d{1,2}(?:/\\d{2,4})?)";
+
+  const DATE_TAIL =
+    "(?:\\s*,?\\s*[A-Z][a-z]+\\s+\\d{1,2}(?:,?\\s*\\d{4})?)?" +
+    "(?:\\s+(?:morning|afternoon|evening))?" +
+    "(?:\\s*,?\\s*at\\s+\\d{1,2}(?::\\d{2})?\\s*(?:AM|PM))?";
+
+  const DEADLINE_RE = new RegExp(
+    "\\b(?:by|before|due(?:\\s+on)?)\\s+(" + DATE_WORD + ")(" + DATE_TAIL + ")",
+    "i"
+  );
+
+  const STOPWORDS = new Set([
+    "the", "a", "an", "to", "for", "of", "and", "on", "in", "at", "it", "this",
+    "that", "with", "from", "by", "before", "is", "be", "we", "i", "you", "our"
+  ]);
+
+  // Real transcripts arrive in several shapes. Normalise them into
+  // "Name: text" lines before anything else looks at the text.
+  function prepareTranscript(transcript) {
+    let text = String(transcript || "").replace(/\r/g, "");
+
+    // 1. drop everything from an existing "Action Items" / "Next steps" summary,
+    //    so the tool reads the meeting, not a recap of the meeting.
+    text = text.replace(
+      /^[ \t]*(?:\d+[.)]?\s*)?(?:action items?(?:\s+(?:summary|table))?|items requiring clarification|next steps|action plan)\s*:?[ \t]*$/im,
+      "\u0000CUT\u0000"
+    ).split("\u0000CUT\u0000")[0];
+
+    // 2. a transcript pasted as one paragraph still contains "Name:" labels
+    text = text.replace(/([.!?])\s+(?=[A-Z][a-z]+(?: [A-Z][a-z]+){0,2}\s*(?:\([^)]{1,40}\))?\s*:)/g, "$1\n");
+
+    // 3. "Name (Role):" on its own line -> pull the next line up as the text
+    text = text.replace(
+      /^[ \t]*([A-Z][A-Za-z'\u2019-]+(?: [A-Z][A-Za-z'\u2019-]+){0,2})\s*(?:\([^)]{1,40}\))?\s*:\s*$\n?/gm,
+      "$1: "
+    );
+
+    // 4. "Name (Role): text" -> "Name: text"
+    text = text.replace(
+      /^[ \t]*([A-Z][A-Za-z'\u2019-]+(?: [A-Z][A-Za-z'\u2019-]+){0,2})\s*\([^)]{1,40}\)\s*:\s*/gm,
+      "$1: "
+    );
+
+    return text;
+  }
+
+  function normalizeTranscript(transcript) {
+    return prepareTranscript(transcript);
+  }
+
+  function splitTranscript(transcript) {
+    return normalizeTranscript(transcript)
+      .split(/\n+/)
+      .flatMap((line) => {
+        const trimmed = line.trim();
+        if (!trimmed) return [];
+        const match = trimmed.match(new RegExp("^(" + NAME + ")\\s*:\\s*(.*)$"));
+        const speaker = match ? match[1] : "";
+        const content = match ? match[2] : trimmed;
+        return content
+          .split(/(?<=[.!?])\s+(?=[A-Z])/)
+          .map((part) => part.trim())
+          .filter(Boolean)
+          .map((part) => (speaker ? speaker + ": " + part : part));
+      });
+  }
+
+  function getSpeaker(sentence) {
+    const m = sentence.match(new RegExp("^(" + NAME + ")\\s*:\\s*"));
+    return m ? m[1] : "";
+  }
+
+  function getContent(sentence) {
+    return sentence.replace(new RegExp("^" + NAME + "\\s*:\\s*"), "").trim();
+  }
+
+  function knownSpeakers(transcript) {
+    const seen = new Map();
+    for (const line of normalizeTranscript(transcript).split(/\n+/)) {
+      const m = line.trim().match(new RegExp("^(" + NAME + ")\\s*:"));
+      if (m) {
+        const full = m[1];
+        const first = full.split(/\s+/)[0];
+        if (!seen.has(first.toLowerCase())) seen.set(first.toLowerCase(), full);
+      }
+    }
+    return seen; // first name (lowercase) -> full name
+  }
+
+  // "Bob, can you…" should resolve to "Bob Lee" when Bob Lee is a speaker.
+  function resolveOwner(name, speakers) {
+    if (!name) return "Unassigned";
+    const clean = name.trim().replace(/[.,;:]+$/, "");
+    if (!clean) return "Unassigned";
+    const key = clean.split(/\s+/)[0].toLowerCase();
+    if (speakers.has(key)) return speakers.get(key);
+    // Anything that is not a person in this meeting is not an owner.
+    if (/^(we|i|you|they|he|she|it|someone|somebody|anyone|anybody|nobody|team|everyone|us|also|before|after|by|then|and)$/i.test(clean)) {
+      return "Unassigned";
+    }
+    if (!/^[A-Z][a-z]+(?: [A-Z][a-z]+){0,2}$/.test(clean)) return "Unassigned";
+    return clean;
+  }
+
+  function getOwner(sentence, speakers) {
+    const speaker = getSpeaker(sentence);
+    const content = getContent(sentence);
+
+    // "Sarah: I'll do it" — the speaker owns it.
+    if (/^(i'll|i will|i need to|i must|let me|we'll|we will)\b/i.test(content)) {
+      return resolveOwner(speaker, speakers) || "Unassigned";
+    }
+
+    // "Sarah: James, can you send it?" — James owns it.
+    const requested = content.match(
+      new RegExp(
+        "^(" + NAME + ")\\s*,?\\s+(?:can you|could you|would you|please|will you|need to|needs to|must)\\b",
+        "i"
+      )
+    );
+    if (requested) return resolveOwner(requested[1], speakers);
+
+    // "Sarah: James will send it." / "James owns the marketing assets."
+    const named = content.match(
+      new RegExp("\\b(" + NAME + ")\\s+(?:will|needs to|must|is responsible for|owns|takes responsibility)\\b")
+    );
+    if (named) return resolveOwner(named[1], speakers);
+
+    // "@name" anywhere.
+    const at = content.match(/@([A-Za-z][A-Za-z.'-]*)/);
+    if (at) return resolveOwner(at[1], speakers);
+
+    // Ownerless language must not fall back to the speaker.
+    if (/\b(someone|somebody|anyone|anybody|nobody|we|someone'll)\b/i.test(content)) {
+      return "Unassigned";
+    }
+
+    return "Unassigned";
+  }
+
+  function getDeadline(sentence) {
+    const m = getContent(sentence).match(DEADLINE_RE);
+    if (!m) return "No deadline";
+    const raw = (m[1] + (m[2] || "")).replace(/\s+/g, " ").replace(/[.,;]+$/, "").trim();
+    if (!raw) return "No deadline";
+    return "by " + raw;
+  }
+
+  function cleanTask(sentence, deadline) {
+    let task = getContent(sentence);
+
+    // Drop the assigning vocative: "James, can you send it" -> "send it".
+    task = task.replace(
+      new RegExp(
+        "^" + NAME + "\\s*,?\\s+(?=(?:can you|could you|would you|please|will you|needs to|need to|must)\\b)",
+        "i"
+      ),
+      ""
+    );
+
+    task = task
+      .replace(/^(?:i'll|i will|i need to|i must|let me|we'll|we will)\s+/i, "")
+      .replace(/^(?:we\s+)?(?:also\s+)?need to\s+/i, "")
+      .replace(/^(?:please|can you|could you|would you|will you)\s+/i, "")
+      .replace(/^(?:just|also|then|quickly)\s+/i, "");
+
+    // The deadline is stored separately; don't repeat it inside the task.
+    if (deadline && deadline !== "No deadline") {
+      task = task.replace(DEADLINE_RE, "\u0000");
+      // "before Monday's leadership meeting" leaves a stray possessive behind
+      task = task.replace(/\u0000\s*['\u2019]s\b[^.,;]*/i, "");
+      task = task.replace(/\u0000/g, " ");
+      task = task.replace(/\s{2,}/g, " ");
+    }
+
+    task = task.replace(/\s+/g, " ").replace(/^['\u2019]s\s+/i, "").replace(/[.,;\s]+$/, "").trim();
+    task = task.charAt(0).toUpperCase() + task.slice(1);
+
+    return task || getContent(sentence);
+  }
+
+  function normalizeTask(task) {
+    return task
+      .toLowerCase()
+      .replace(/[^\w\s]/g, "")
+      .split(/\s+/)
+      .filter((w) => w && !STOPWORDS.has(w))
+      .join(" ");
+  }
+
+  // Overlap of significant words, so a request and its acceptance collapse
+  // even when the wording differs.
+  function similar(a, b) {
+    const A = new Set(a.split(" ").filter(Boolean));
+    const B = new Set(b.split(" ").filter(Boolean));
+    if (!A.size || !B.size) return false;
+    let shared = 0;
+    for (const w of A) if (B.has(w)) shared++;
+    return shared / Math.min(A.size, B.size) >= 0.72;
+  }
+
+  function extractActions(transcript) {
+    const speakers = knownSpeakers(transcript);
+    const extracted = [];
+
+    for (const sentence of splitTranscript(transcript)) {
+      if (!ACTION_WORDS.test(sentence) || !COMMITMENT.test(sentence)) continue;
+
+      const content = getContent(sentence);
+      if (/\bshould probably\b|\bmaybe we should\b/i.test(content)) continue;
+      if (/^\s*if\b/i.test(content)) continue;   // conditional, not a commitment
+
+      const deadline = getDeadline(sentence);
+      const task = cleanTask(sentence, deadline);
+      const owner = getOwner(sentence, speakers);
+      const normalized = normalizeTask(task);
+      if (!normalized) continue;
+
+      const duplicate = extracted.find(
+        (item) => similar(normalizeTask(item.task), normalized)
+      );
+
+      if (duplicate) {
+        if (duplicate.deadline === "No deadline" && deadline !== "No deadline") {
+          duplicate.deadline = deadline;
+        }
+        if (duplicate.owner === "Unassigned" && owner !== "Unassigned") {
+          duplicate.owner = owner;
+        }
+        continue;
+      }
+
+      extracted.push({ task, owner, deadline });
+    }
+
+    return extracted;
+  }
+
+  global.Recap = { extractActions, normalizeTranscript };
+})(typeof window !== "undefined" ? window : globalThis);
+
+</script>
+<script>
+// public/script.js — UI wiring: review, sign-off, send now or schedule.
+// Extraction lives in public/extract.js (loaded first) as window.Recap.extractActions.
+
+const el = (id) => document.getElementById(id);
+
+const transcriptInput = el("transcript");
+const extractBtn = el("extractBtn");
+const addBtn = el("addBtn");
+const previewBtn = el("previewBtn");
+const postBtn = el("postBtn");
+const copyBtn = el("copyBtn");
+const actionItemsContainer = el("actionItems");
+const slackPreview = el("slackPreview");
+const statusMessage = el("status");
+const meetingTitle = el("meetingTitle");
+const approver = el("approver");
+const nowBtn = el("nowBtn");
+const laterBtn = el("laterBtn");
+const whenWrap = el("whenWrap");
+const sendAt = el("sendAt");
+const scheduleHint = document.getElementById("scheduleHint");
+const queueBox = el("queue");
+const donePanel = el("donePanel");
+const doneTitle = el("doneTitle");
+const doneDetail = el("doneDetail");
+const againBtn = el("againBtn");
+const closeBtn = el("closeBtn");
+const historyList = el("historyList");
+const testSlackBtn = el("testSlackBtn");
+const historyRefresh = el("historyRefresh");
+const historyClear = el("historyClear");
+
+let actionItems = [];
+let sendMode = "now"; // "now" | "later"
+let busy = false;
+let postedOnce = false;
+
+/* ---------------- theme ---------------- */
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  document.getElementById("themeLabel").textContent = theme === "dark" ? "Light" : "Dark";
+  try { localStorage.setItem("recap-theme", theme); } catch (e) {}
+}
+
+function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem("recap-theme"); } catch (e) {}
+  const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  applyTheme(saved || (prefersDark ? "dark" : "light"));
+}
+
+document.getElementById("themeBtn").addEventListener("click", () => {
+  const current = document.documentElement.getAttribute("data-theme");
+  applyTheme(current === "dark" ? "light" : "dark");
+});
+
+/* ---------------- helpers ---------------- */
+
+function setStatus(text, isError) {
+  statusMessage.textContent = text;
+  statusMessage.className = isError ? "error" : "";
+}
+
+function titleText() {
+  return meetingTitle.value.trim() || "Meeting Action Items";
+}
+
+function approverName() {
+  return approver.value.trim();
+}
+
+function buildMessage() {
+  if (!actionItems.length) return "";
+
+  const lines = actionItems.map((item, index) => {
+    const task = item.task.trim() || "(Task description needed)";
+    const owner = item.owner.trim() || "Unassigned";
+    const deadline = item.deadline.trim() || "No deadline";
+    return `${index + 1}. ${task}\n   Owner: ${owner}\n   Deadline: ${deadline}`;
+  });
+
+  const who = approverName();
+  const stamp = new Date().toLocaleDateString(undefined, {
+    day: "numeric", month: "short", year: "numeric"
+  });
+  const signoff = who ? `_Approved by ${who} · ${stamp}_` : `_Not yet approved · ${stamp}_`;
+
+  return `*${titleText()}*\n${signoff}\n\n${lines.join("\n\n")}`;
+}
+
+function updatePreview() {
+  slackPreview.textContent = buildMessage() || "Nothing to preview yet.";
+  refreshPostState();
+}
+
+function refreshPostState() {
+  const hasItems = actionItems.some((item) => item.task.trim());
+  const signedOff = approverName().length > 1;
+  const scheduledOk = sendMode === "now" || Boolean(sendAt.value);
+
+  postBtn.disabled = busy || !hasItems || !signedOff || !scheduledOk || postedOnce;
+  postBtn.textContent = postedOnce
+    ? "Sent ✓"
+    : busy
+      ? "Working…"
+      : sendMode === "now"
+        ? "Post to Slack"
+        : "Schedule recap";
+}
+
+/* ---------------- review list ---------------- */
+
+function renderItems() {
+  actionItemsContainer.replaceChildren();
+
+  if (!actionItems.length) {
+    const empty = document.createElement("p");
+    empty.className = "muted";
+    empty.textContent = "No action items yet. Paste a transcript and extract, or add one by hand.";
+    actionItemsContainer.appendChild(empty);
+    updatePreview();
+    return;
+  }
+
+  actionItems.forEach((item, index) => {
+    const card = document.createElement("div");
+    card.className = "action-item";
+
+    [
+      { key: "task", label: "Task description" },
+      { key: "owner", label: "Owner" },
+      { key: "deadline", label: "Deadline" }
+    ].forEach((field) => {
+      const label = document.createElement("label");
+      label.textContent = field.label;
+
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = item[field.key] || "";
+      input.setAttribute("aria-label", `${field.label}, task ${index + 1}`);
+      input.addEventListener("input", () => {
+        actionItems[index][field.key] = input.value;
+        if (postedOnce) { postedOnce = false; setStatus("Task changed — send again to update the channel."); }
+        updatePreview();
+      });
+
+      if (field.key === "deadline") {
+        // free text ("by Friday") plus a real calendar picker
+        const wrap = document.createElement("div");
+        wrap.className = "deadline-wrap";
+
+        const cal = document.createElement("button");
+        cal.type = "button";
+        cal.className = "cal";
+        cal.title = "Pick a date from the calendar";
+        cal.setAttribute("aria-label", "Pick a deadline date, task " + (index + 1));
+        cal.textContent = "\uD83D\uDCC5";
+
+        const picker = document.createElement("input");
+        picker.type = "date";
+        picker.className = "date-picker";
+        picker.tabIndex = -1;
+        picker.setAttribute("aria-hidden", "true");
+
+        cal.addEventListener("click", () => {
+          try {
+            if (typeof picker.showPicker === "function") picker.showPicker();
+            else picker.click();
+          } catch (e) {
+            picker.click();
+          }
+        });
+
+        picker.addEventListener("change", () => {
+          if (!picker.value) return;
+          const d = new Date(picker.value + "T12:00:00");
+          const text = d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+          input.value = text;
+          actionItems[index].deadline = text;
+          if (postedOnce) postedOnce = false;
+          updatePreview();
+          setStatus("Deadline set to " + text + ".");
+        });
+
+        wrap.appendChild(input);
+        wrap.appendChild(cal);
+        wrap.appendChild(picker);
+        label.appendChild(wrap);
+      } else {
+        label.appendChild(input);
+      }
+
+      card.appendChild(label);
+    });
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "remove";
+    remove.textContent = "Remove";
+    remove.addEventListener("click", () => {
+      actionItems.splice(index, 1);
+      postedOnce = false;
+      renderItems();
+      setStatus("Task removed.");
+    });
+    card.appendChild(remove);
+
+    actionItemsContainer.appendChild(card);
+  });
+
+  updatePreview();
+}
+
+/* ---------------- extract / add ---------------- */
+
+extractBtn.addEventListener("click", () => {
+  // Fail loudly instead of silently if the extractor script is missing.
+  if (!window.Recap || typeof window.Recap.extractActions !== "function") {
+    setStatus("The extractor did not load: public/extract.js is missing or not linked. Re-copy extract.js into the public folder.", true);
+    return;
+  }
+
+  const transcript = transcriptInput.value.trim();
+  if (!transcript) {
+    setStatus("Paste a meeting transcript first.", true);
+    return;
+  }
+
+  actionItems = window.Recap.extractActions(transcript);
+  postedOnce = false;
+  renderItems();
+
+  setStatus(
+    actionItems.length
+      ? `Found ${actionItems.length} action item${actionItems.length === 1 ? "" : "s"} — review them below.`
+      : "No likely action items found. Add tasks manually if you need to.",
+    !actionItems.length
+  );
+});
+
+addBtn.addEventListener("click", () => {
+  actionItems.push({ task: "", owner: "Unassigned", deadline: "No deadline" });
+  postedOnce = false;
+  renderItems();
+  setStatus("New task added. Fill in the details.");
+});
+
+previewBtn.addEventListener("click", () => {
+  updatePreview();
+  setStatus("Preview refreshed.");
+});
+
+meetingTitle.addEventListener("input", updatePreview);
+approver.addEventListener("input", updatePreview);
+sendAt.addEventListener("input", refreshPostState);
+
+/* ---------------- send timing ---------------- */
+
+function setSendMode(mode) {
+  sendMode = mode;
+  nowBtn.setAttribute("aria-pressed", String(mode === "now"));
+  laterBtn.setAttribute("aria-pressed", String(mode === "later"));
+  whenWrap.hidden = mode !== "later";
+  whenWrap.style.display = mode === "later" ? "block" : "none";
+  scheduleHint.hidden = mode !== "later";
+  scheduleHint.style.display = mode === "later" ? "block" : "none";
+  if (mode === "later" && !sendAt.value) {
+    const d = new Date(Date.now() + 60 * 60 * 1000);
+    d.setMinutes(0, 0, 0);
+    const pad = (n) => String(n).padStart(2, "0");
+    sendAt.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:00`;
+  }
+  postedOnce = false;
+  refreshPostState();
+}
+
+nowBtn.addEventListener("click", () => setSendMode("now"));
+laterBtn.addEventListener("click", () => setSendMode("later"));
+
+/* ---------------- posting ---------------- */
+
+postBtn.addEventListener("click", async () => {
+  if (busy) return;
+
+  const message = buildMessage();
+  if (!message) { setStatus("Add at least one task before sending.", true); return; }
+  if (!approverName()) { setStatus("Add the name of the person approving this recap.", true); return; }
+
+  busy = true;
+  refreshPostState();
+
+  const scheduling = sendMode === "later";
+  const endpoint = scheduling ? "/api/schedule" : "/api/slack";
+  const body = { message, approved: true, approver: approverName(), title: titleText() };
+  if (scheduling) body.sendAt = new Date(sendAt.value).toISOString();
+
+  setStatus(scheduling ? "Scheduling the recap…" : "Posting the recap to Slack…");
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      setStatus(data.error || `Request failed (${response.status}).`, true);
+      return;
+    }
+
+    postedOnce = !scheduling;
+    setStatus(
+      scheduling
+        ? `Scheduled for ${new Date(body.sendAt).toLocaleString()}.`
+        : data.message || "Recap sent to Slack."
+    );
+    if (scheduling) {
+      loadQueue();
+    } else {
+      showDone(data.recap || {});
+      loadHistory();
+    }
+  } catch (error) {
+    setStatus("Could not reach the server. Is it running on port 3000?", true);
+  } finally {
+    busy = false;
+    refreshPostState();
+  }
+});
+
+copyBtn.addEventListener("click", async () => {
+  const message = buildMessage();
+  if (!message) { setStatus("There is nothing to copy yet.", true); return; }
+  try {
+    await navigator.clipboard.writeText(message);
+    setStatus("Recap copied — paste it into Slack.");
+  } catch (error) {
+    setStatus("Copy failed. Select the preview text manually.", true);
+  }
+});
+
+/* ---------------- scheduled queue ---------------- */
+
+async function loadQueue() {
+  try {
+    const response = await fetch("/api/schedule");
+    if (!response.ok) return;
+    const { jobs } = await response.json();
+    queueBox.replaceChildren();
+
+    if (!jobs || !jobs.length) return;
+
+    jobs.forEach((job) => {
+      const row = document.createElement("div");
+      row.className = "queue-item";
+      const when = new Date(job.sendAt).toLocaleString();
+      row.innerHTML = `<span>Queued for <strong>${when}</strong></span><span>${job.state}</span>`;
+      queueBox.appendChild(row);
+    });
+  } catch (error) {
+    /* queue is a nicety; ignore failures */
+  }
+}
+
+/* ---------------- boot ---------------- */
+
+initTheme();
+setSendMode("now");
+
+/* ---------------- success panel ---------------- */
+
+function showDone(recap) {
+  const when = new Date().toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  doneTitle.textContent = "Sent to Slack";
+  const bits = [];
+  if (recap.tasks) bits.push(recap.tasks + (recap.tasks === 1 ? " task" : " tasks"));
+  if (recap.owners) bits.push(recap.owners + " " + (recap.owners === 1 ? "owner" : "owners"));
+  doneDetail.textContent =
+    (bits.length ? bits.join(" · ") + ". " : "") +
+    "Approved by " + (recap.approver || approverName() || "—") +
+    " at " + when + ". Slack answered " + (recap.slackReply || "ok") + ".";
+  donePanel.hidden = false;
+  donePanel.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function resetForNewRecap() {
+  actionItems = [];
+  postedOnce = false;
+  transcriptInput.value = "";
+  approver.value = "";
+  meetingTitle.value = "";
+  donePanel.hidden = true;
+  renderItems();
+  setStatus("Ready — paste the next transcript, then press Extract action items.");
+  transcriptInput.focus();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+againBtn.addEventListener("click", resetForNewRecap);
+closeBtn.addEventListener("click", () => {
+  donePanel.hidden = true;
+  setStatus("Ready.");
+});
+
+/* ---------------- sent history ---------------- */
+
+function formatWhen(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined, {
+    weekday: "short", day: "numeric", month: "short",
+    hour: "numeric", minute: "2-digit"
+  });
+}
+
+function renderHistory(items) {
+  historyList.replaceChildren();
+
+  if (!items || !items.length) {
+    const empty = document.createElement("p");
+    empty.className = "muted";
+    empty.textContent = "Nothing posted yet. The first recap you send will appear here.";
+    historyList.appendChild(empty);
+    return;
+  }
+
+  items.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "history-item";
+
+    const main = document.createElement("div");
+    main.className = "history-main";
+
+    const title = document.createElement("strong");
+    title.textContent = item.title || "Meeting recap";
+    main.appendChild(title);
+
+    const meta = document.createElement("p");
+    meta.className = "tiny";
+    const parts = [formatWhen(item.at)];
+    if (item.approver) parts.push("approved by " + item.approver);
+    if (item.tasks) parts.push(item.tasks + (item.tasks === 1 ? " task" : " tasks"));
+    if (item.owners) parts.push(item.owners + (item.owners === 1 ? " owner" : " owners"));
+    if (item.state === "failed") parts.push("FAILED: " + (item.error || "unknown error"));
+    meta.textContent = parts.join(" · ");
+    main.appendChild(meta);
+
+    row.appendChild(main);
+
+    const right = document.createElement("div");
+    right.className = "history-side";
+
+    const badge = document.createElement("span");
+    badge.className = "badge " + (item.state === "failed" ? "bad" : "good");
+    badge.textContent = item.state === "failed" ? "Failed" : "Sent";
+    right.appendChild(badge);
+
+    if (item.message) {
+      const view = document.createElement("button");
+      view.type = "button";
+      view.className = "secondary tiny-btn";
+      view.textContent = "View";
+      view.addEventListener("click", () => {
+        const box = row.querySelector(".history-message");
+        if (box) {
+          box.remove();
+          view.textContent = "View";
+          return;
+        }
+        const pre = document.createElement("pre");
+        pre.className = "history-message";
+        pre.textContent = item.message;
+        row.appendChild(pre);
+        view.textContent = "Hide";
+      });
+      right.appendChild(view);
+    }
+
+    row.appendChild(right);
+    historyList.appendChild(row);
+  });
+}
+
+async function loadHistory() {
+  try {
+    const response = await fetch("/api/history");
+    const data = await response.json().catch(() => ({ items: [] }));
+    renderHistory(data.items || []);
+  } catch (e) {
+    historyList.replaceChildren();
+    const p = document.createElement("p");
+    p.className = "muted";
+    p.textContent = "Could not load the log — is the server running?";
+    historyList.appendChild(p);
+  }
+}
+
+historyRefresh.addEventListener("click", () => {
+  loadHistory();
+  setStatus("Log refreshed.");
+});
+
+historyClear.addEventListener("click", async () => {
+  if (!window.confirm("Clear the local log of sent recaps? This does not touch Slack.")) return;
+  try {
+    await fetch("/api/history", { method: "DELETE" });
+    loadHistory();
+    setStatus("Log cleared.");
+  } catch (e) {
+    setStatus("Could not clear the log.", true);
+  }
+});
+
+/* ---------------- slack connection test ---------------- */
+
+testSlackBtn.addEventListener("click", async () => {
+  setStatus("Sending a test message to Slack…");
+  testSlackBtn.disabled = true;
+  try {
+    const response = await fetch("/api/slack/test");
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setStatus(data.error || `Test failed (${response.status}).`, true);
+      return;
+    }
+    setStatus(data.message || "Test message posted — check the channel.");
+  } catch (e) {
+    setStatus("Could not reach the server. Is it running on port 3000?", true);
+  } finally {
+    testSlackBtn.disabled = false;
+  }
+});
+
+loadHistory();
+
+renderItems();
+loadQueue();
+
+</script>
 </body>
 </html>
